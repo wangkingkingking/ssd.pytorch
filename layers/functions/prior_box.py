@@ -1,6 +1,6 @@
 from __future__ import division
-from math import sqrt as sqrt
-from itertools import product as product
+from math import sqrt 
+from itertools import product 
 import torch
 
 

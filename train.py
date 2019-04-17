@@ -14,7 +14,7 @@ import torch.nn.init as init
 import torch.utils.data as data
 import numpy as np
 import argparse
-
+from torch import nn
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
@@ -51,6 +51,7 @@ parser.add_argument('--visdom', default=False, type=str2bool,
                     help='Use visdom for loss visualization')
 parser.add_argument('--save_folder', default='weights/',
                     help='Directory for saving checkpoint models')
+parser.add_argument('--gpu', default= None, type = tuple, help='Specify gpus to use')
 args = parser.parse_args()
 
 
@@ -69,6 +70,7 @@ if not os.path.exists(args.save_folder):
 
 
 def train():
+    """
     if args.dataset == 'COCO':
         if args.dataset_root == VOC_ROOT:
             if not os.path.exists(COCO_ROOT):
@@ -87,7 +89,9 @@ def train():
         dataset = VOCDetection(root=args.dataset_root,
                                transform=SSDAugmentation(cfg['min_dim'],
                                                          MEANS))
-
+   """
+    cfg = voc
+    dataset = VOCDetection(root=args.dataset_root, transform=SSDAugmentation(cfg['min_dim'], MEANS))
     if args.visdom:
         import visdom
         viz = visdom.Visdom()
@@ -107,9 +111,13 @@ def train():
         print('Loading base network...')
         ssd_net.vgg.load_state_dict(vgg_weights)
 
+#    if args.gpu is not None:
+#        net = nn.DataParallel(net, device_ids = args.gpu)
+#    net = nn.DataParallel(net, device_ids=(0,1,3))
     if args.cuda:
         net = net.cuda()
-
+    
+    
     if not args.resume:
         print('Initializing weights...')
         # initialize newly added layers' weights with xavier method
@@ -180,15 +188,18 @@ def train():
         loss.backward()
         optimizer.step()
         t1 = time.time()
-        loc_loss += loss_l.data[0]
-        conf_loss += loss_c.data[0]
+        #loc_loss += loss_l.data[0]
+        #conf_loss += loss_c.data[0]
+        loc_loss += loss_l.data.item()
+        conf_loss += loss_c.data.item()
+
 
         if iteration % 10 == 0:
             print('timer: %.4f sec.' % (t1 - t0))
-            print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data[0]), end=' ')
+            print('iter ' + repr(iteration) + ' || Loss: %.4f ||' % (loss.data.item()), end=' ')
 
         if args.visdom:
-            update_vis_plot(iteration, loss_l.data[0], loss_c.data[0],
+            update_vis_plot(iteration, loss_l.data.item(), loss_c.data.item(),
                             iter_plot, epoch_plot, 'append')
 
         if iteration != 0 and iteration % 5000 == 0:
